@@ -1,0 +1,268 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Buscador de Productos - Almacén</title>
+    <style>
+        :root {
+            --ricoh-blue: #004F9F;
+            --ricoh-light-blue: #E6F0F7;
+            --ricoh-dark-blue: #003366;
+            --ricoh-gray: #F5F5F5;
+            --ricoh-dark-gray: #333333;
+        }
+        
+        body {
+            font-family: 'Arial', sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: var(--ricoh-gray);
+            color: var(--ricoh-dark-gray);
+        }
+        
+        .header {
+            background-color: var(--ricoh-blue);
+            color: white;
+            padding: 20px 40px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+        
+        .logo {
+            height: 40px;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 30px auto;
+            padding: 0 20px;
+        }
+        
+        .search-panel {
+            background-color: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+            padding: 30px;
+            margin-bottom: 30px;
+        }
+        
+        .search-title {
+            color: var(--ricoh-blue);
+            margin-top: 0;
+            font-size: 24px;
+            border-bottom: 1px solid var(--ricoh-light-blue);
+            padding-bottom: 15px;
+        }
+        
+        .search-form {
+            display: flex;
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+        
+        .search-input {
+            flex: 1;
+            padding: 12px 15px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 16px;
+        }
+        
+        .search-button {
+            background-color: var(--ricoh-blue);
+            color: white;
+            border: none;
+            border-radius: 4px;
+            padding: 0 30px;
+            cursor: pointer;
+            font-size: 16px;
+            transition: background-color 0.3s;
+        }
+        
+        .search-button:hover {
+            background-color: var(--ricoh-dark-blue);
+        }
+        
+        .results-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        }
+        
+        .results-table th {
+            background-color: var(--ricoh-blue);
+            color: white;
+            text-align: left;
+            padding: 12px 15px;
+        }
+        
+        .results-table td {
+            padding: 12px 15px;
+            border-bottom: 1px solid #eee;
+        }
+        
+        .results-table tr:nth-child(even) {
+            background-color: var(--ricoh-light-blue);
+        }
+        
+        .results-table tr:hover {
+            background-color: #e1e9f1;
+        }
+        
+        .status-message {
+            padding: 15px;
+            border-radius: 4px;
+            margin: 20px 0;
+        }
+        
+        .success {
+            background-color: #d4edda;
+            color: #155724;
+        }
+        
+        .error {
+            background-color: #f8d7da;
+            color: #721c24;
+        }
+        
+        .loading {
+            background-color: #fff3cd;
+            color: #856404;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>Buscador de Productos</h1>
+        <img src="https://www.ricoh.com/-/media/all/global/header/logo_01.png" alt="RICOH Logo" class="logo">
+    </div>
+    
+    <div class="container">
+        <div class="search-panel">
+            <h2 class="search-title">Consulta de productos en almacén</h2>
+            
+            <div class="search-form">
+                <input type="text" id="searchInput" class="search-input" placeholder="Ingrese código de producto...">
+                <button id="searchButton" class="search-button">Buscar</button>
+            </div>
+            
+            <div id="statusMessage" class="status-message loading">
+                Cargando datos del almacén...
+            </div>
+            
+            <div id="resultsContainer" style="overflow-x: auto;">
+                <table id="resultsTable" class="results-table">
+                    <thead>
+                        <tr>
+                            <!-- Columnas se generarán dinámicamente -->
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <!-- Resultados se generarán dinámicamente -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Datos del almacén en formato JSON
+        const datosAlmacen = [
+            {"Código":"PROD001","Nombre":"Tóner Color","Categoría":"Consumibles","Stock":15,"Precio":189.90},
+            {"Código":"PROD002","Nombre":"Tóner Negro","Categoría":"Consumibles","Stock":32,"Precio":159.50},
+            {"Código":"PROD003","Nombre":"Rodillo de Imagen","Categoría":"Partes","Stock":8,"Precio":89.90},
+            {"Código":"PROD004","Nombre":"Unidad de Fusor","Categoría":"Partes","Stock":5,"Precio":120.00},
+            {"Código":"PROD005","Nombre":"Kit Mantenimiento","Categoría":"Kits","Stock":12,"Precio":75.30}
+        ];
+
+        // Mostrar estado
+        function showStatus(message, type) {
+            const statusElement = document.getElementById('statusMessage');
+            statusElement.textContent = message;
+            statusElement.className = 'status-message ' + type;
+        }
+
+        // Configurar encabezados de la tabla
+        function setupTableHeaders() {
+            if (datosAlmacen.length === 0) return;
+            
+            const thead = document.querySelector('#resultsTable thead');
+            thead.innerHTML = '';
+            
+            const headerRow = document.createElement('tr');
+            
+            // Obtener las columnas del primer objeto
+            Object.keys(datosAlmacen[0]).forEach(header => {
+                const th = document.createElement('th');
+                th.textContent = header;
+                headerRow.appendChild(th);
+            });
+            
+            thead.appendChild(headerRow);
+        }
+
+        // Cargar datos al iniciar
+        document.addEventListener('DOMContentLoaded', function() {
+            if (datosAlmacen && datosAlmacen.length > 0) {
+                setupTableHeaders();
+                showStatus('Datos del almacén cargados correctamente', 'success');
+            } else {
+                showStatus('No se encontraron datos en el almacén', 'error');
+            }
+        });
+
+        // Buscar productos
+        document.getElementById('searchButton').addEventListener('click', searchProducts);
+        document.getElementById('searchInput').addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') searchProducts();
+        });
+
+        function searchProducts() {
+            const searchTerm = document.getElementById('searchInput').value.trim();
+            if (!searchTerm) {
+                showStatus('Por favor ingrese un código de producto', 'error');
+                return;
+            }
+
+            if (!datosAlmacen || datosAlmacen.length === 0) {
+                showStatus('No hay datos disponibles para buscar', 'error');
+                return;
+            }
+
+            showStatus('Buscando...', 'loading');
+            
+            const tbody = document.querySelector('#resultsTable tbody');
+            tbody.innerHTML = '';
+            
+            let found = false;
+            
+            // Buscar en la propiedad "Código" (puedes cambiarla por la que uses)
+            datosAlmacen.forEach(item => {
+                if (item["SKU"] && item["SKU"].toString().toLowerCase().includes(searchTerm.toLowerCase())) {
+                    found = true;
+                    const tr = document.createElement('tr');
+                    
+                    // Agregar todas las propiedades del objeto a la tabla
+                    Object.values(item).forEach(value => {
+                        const td = document.createElement('td');
+                        td.textContent = value !== undefined ? value : '';
+                        tr.appendChild(td);
+                    });
+                    
+                    tbody.appendChild(tr);
+                }
+            });
+            
+            if (found) {
+                showStatus(`Se encontraron resultados para: ${searchTerm}`, 'success');
+            } else {
+                showStatus(`No se encontraron productos con el código: ${searchTerm}`, 'error');
+            }
+        }
+    </script>
+</body>
+</html>
